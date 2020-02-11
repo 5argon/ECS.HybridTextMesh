@@ -69,7 +69,11 @@ namespace E7.ECS.SpriteFont
                             {
                                 //Only add if managed to find the prefabs, so it could retry next frame.
                                 ecb.AddComponent<TextMeshSpawned>(e);
-                                ecb.AddComponent(e, new TextDiffer {previousText = t});
+                                ecb.AddComponent(e, new TextDiffer
+                                {
+                                    previousText = t,
+                                    previousStructure = ts,
+                                });
                             }
                         })
                     .WithStoreEntityQueryInField(ref initialGenerationQuery)
@@ -93,7 +97,8 @@ namespace E7.ECS.SpriteFont
                             bool changedForReal1 =
                                 FastEquality.Equals<Text512>(t, td.previousText, textTypeInfo) == false;
                             bool changedForReal2 =
-                                FastEquality.Equals<TextStructure>(ts, td.previousStructure, textTypeInfo) == false;
+                                FastEquality.Equals<TextStructure>(ts, td.previousStructure, structureTypeInfo) ==
+                                false;
 
                             if (changedForReal1 || changedForReal2)
                             {

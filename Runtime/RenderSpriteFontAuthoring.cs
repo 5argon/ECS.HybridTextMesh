@@ -1,4 +1,5 @@
 using System;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
@@ -11,8 +12,7 @@ namespace E7.ECS.SpriteFont
 #pragma warning disable 0649
         [SerializeField] private string text;
         [SerializeField] internal SpriteFontAsset spriteFontAsset;
-        [Space]
-        [SerializeField] private int persistentCharacterEntities;
+        [Space] [SerializeField] private int persistentCharacterEntities;
         [SerializeField] private TextStructure textStructure;
         [SerializeField] private TextTransform textTransform;
 #pragma warning restore 0649
@@ -29,8 +29,8 @@ namespace E7.ECS.SpriteFont
         public void Convert(Entity entity, EntityManager dstManager, GameObjectConversionSystem conversionSystem)
         {
             dstManager.AddComponent<TextTransformFixed>(entity);
-            dstManager.AddBuffer<CharacterEntityGroup>(entity);
 
+            var ea = new NativeArray<CharacterEntityGroup>(persistentCharacterEntities, Allocator.Temp);
             for (int i = 0; i < persistentCharacterEntities; i++)
             {
                 Entity persistentCharacter = conversionSystem.CreateAdditionalEntity(this.gameObject);
@@ -40,14 +40,21 @@ namespace E7.ECS.SpriteFont
                     dstManager.AddComponent(persistentCharacter, type);
                 }
 
+                ea[i] = new CharacterEntityGroup {character = persistentCharacter};
+
+                //buffer.Add(new CharacterEntityGroup {character = persistentCharacter});
                 dstManager.SetComponentData(persistentCharacter, new Parent {Value = entity});
             }
+            
+            var buffer = dstManager.AddBuffer<CharacterEntityGroup>(entity);
+            buffer.AddRange(ea);
 
             dstManager.AddComponentData(entity, new Text512
             {
                 text = text,
             });
 
+            textStructure.persistentCharacterEntity = persistentCharacterEntities > 0;
             dstManager.AddComponentData<TextStructure>(entity, textStructure);
 
             var rt = this.GetComponent<RectTransform>();
