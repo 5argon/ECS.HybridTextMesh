@@ -6,15 +6,15 @@ using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
 
-namespace E7.ECS.SpriteFont
+namespace E7.ECS.HybridTextMesh
 {
     /// <summary>
-    /// For any <see cref="SpriteFontAsset"/> usage ensure an asset entity representing that
+    /// For any <see cref="HtmFontAsset"/> usage ensure an asset entity representing that
     /// font asset exist. Then we could make a lookup hash map and prefab per character.
     ///
     /// Has 1 frame delay.
     /// </summary>
-    [UpdateInGroup(typeof(SimulationGroup))]
+    [UpdateInGroup(typeof(HybridTextMeshSimulationGroup))]
     internal class EnsureFontAssetEntitySystem : JobComponentSystem
     {
         EntityQuery fontAssetQuery;
@@ -34,8 +34,8 @@ namespace E7.ECS.SpriteFont
             );
             ecbs = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
             fontAssetQuery = GetEntityQuery(
-                ComponentType.ReadOnly<FontAsset>(),
-                ComponentType.ReadOnly<SpriteFontAssetHolder>()
+                ComponentType.ReadOnly<FontAssetEntity>(),
+                ComponentType.ReadOnly<FontAssetHolder>()
             );
             fontAssetArchetype = EntityManager.CreateArchetype(
                 ArchetypeCollection.FontAssetTypes
@@ -48,15 +48,12 @@ namespace E7.ECS.SpriteFont
             var ecb = ecbs.CreateCommandBuffer();
             var worked = new NativeList<int>(4, Allocator.Temp);
             Entities
-                .WithAll<Text512>()
+                .WithAll<TextContent>()
                 .WithNone<FontAssetEntityExistForThisText>()
-                .ForEach((Entity e, SpriteFontAssetHolder sfah) =>
+                .ForEach((Entity e, FontAssetHolder sfah) =>
                 {
-                    var sfa = sfah.spriteFontAsset;
-                    ecb.SetComponent(e, new TextTransformFixed
-                    {
-                        lineHeight = sfa.lineHeight
-                    });
+                    var sfa = sfah.htmFontAsset;
+                    ecb.SetComponent(e, sfa.fontMetrics);
 
                     int sfaInstanceId = sfa.GetInstanceID();
                     //One SPA get only one prepare, so if there are something here don't do it anymore.
@@ -66,37 +63,18 @@ namespace E7.ECS.SpriteFont
                         Entity fontAssetEntity = ecb.CreateEntity(fontAssetArchetype);
 
                         ecb.SetSharedComponent(fontAssetEntity, sfah);
-                        var buffer = ecb.SetBuffer<CharacterPrefabBuffer>(fontAssetEntity);
+                        var buffer = ecb.SetBuffer<GlyphPrefabBuffer>(fontAssetEntity);
                         //Prepare prefabs for this asset.
                         for (int i = 0; i < sfa.characterInfos.Length; i++)
                         {
-                            var c = sfa.characterInfos[i];
-                            Entity characterPrefab = ecb.CreateEntity(characterWithPrefabArchetype);
-                            Entity characterPrefabWithScale = ecb.CreateEntity(characterWithPrefabArchetype);
-                            ecb.AddComponent<NonUniformScale>(characterPrefabWithScale,
-                                new NonUniformScale {Value = new float3(1)});
-
-                            ecb.SetSharedComponent(characterPrefab, new RenderMesh
-                            {
-                                material = sfa.material,
-                                mesh = c.meshForCharacter,
-                            });
-                            ecb.SetSharedComponent(characterPrefabWithScale, new RenderMesh
-                            {
-                                material = sfa.material,
-                                mesh = c.meshForCharacter,
-                            });
-
-                            ecb.SetComponent(characterPrefab, c.metrics);
-                            ecb.SetComponent(characterPrefabWithScale, c.metrics);
-
-                            buffer.Add(new CharacterPrefabBuffer
-                            {
-                                character = c.character.ToString(),
-                                prefab = characterPrefab,
-                                prefabWithScale = characterPrefabWithScale
-                            });
+                            CharacterInfo c = sfa.characterInfos[i];
+                            RegisterCharacter(sfa, c, ecb, buffer);
                         }
+
+                        RegisterCharacter(sfa, new CharacterInfo
+                        {
+                            character = '\n',
+                        }, ecb, buffer, new SpecialCharacter {newLine = true});
 
                         //Prevents loading the same font in the same frame since ECB target
                         //the next frame.
@@ -108,6 +86,42 @@ namespace E7.ECS.SpriteFont
             ecb.AddComponent<FontAssetEntityExistForThisText>(potentiallyNewSpriteFontAssetQuery);
             worked.Dispose();
             return default;
+        }
+
+        void RegisterCharacter(HtmFontAsset sfa,
+            CharacterInfo c,
+            EntityCommandBuffer ecb,
+            DynamicBuffer<GlyphPrefabBuffer> buffer,
+            SpecialCharacter specialCharacter = default)
+        {
+            Entity characterPrefab = ecb.CreateEntity(characterWithPrefabArchetype);
+            Entity characterPrefabWithScale = ecb.CreateEntity(characterWithPrefabArchetype);
+            ecb.AddComponent<NonUniformScale>(characterPrefabWithScale,
+                new NonUniformScale {Value = new float3(1)});
+
+            ecb.SetSharedComponent(characterPrefab, new RenderMesh
+            {
+                material = sfa.material,
+                mesh = c.meshForCharacter,
+            });
+            ecb.SetSharedComponent(characterPrefabWithScale, new RenderMesh
+            {
+                material = sfa.material,
+                mesh = c.meshForCharacter,
+            });
+
+            ecb.SetComponent(characterPrefab, c.glyphMetrics);
+            ecb.SetComponent(characterPrefabWithScale, c.glyphMetrics);
+
+            ecb.SetComponent(characterPrefab, specialCharacter);
+            ecb.SetComponent(characterPrefabWithScale, specialCharacter);
+
+            buffer.Add(new GlyphPrefabBuffer
+            {
+                character = c.character.ToString(),
+                prefab = characterPrefab,
+                prefabWithScale = characterPrefabWithScale
+            });
         }
     }
 }

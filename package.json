@@ -2,9 +2,9 @@
     "name": "com.e7.ecs.hybrid-text-mesh",
     "author": "Sirawat Pitaksarit / 5argon - Exceed7 Experiments",
     "displayName": "ECS Hybrid Text Mesh",
-    "version": "1.0.0",
-    "unity": "2018.1",
-    "description": "Create text meshes and render them with Hybrid Renderer.",
+    "version": "0.0.1",
+    "unity": "2019.3",
+    "description": "Use Transform systems and Hybrid Renderer to render pre-generated meshes of glyphs.",
     "keywords": [
         "entities",
         "hybrid",

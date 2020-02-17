@@ -3,9 +3,9 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 
-namespace E7.ECS.SpriteFont
+namespace E7.ECS.HybridTextMesh
 {
-    [UpdateInGroup(typeof(SimulationGroup))]
+    [UpdateInGroup(typeof(HybridTextMeshSimulationGroup))]
     internal class CharacterPrefabLookupPreparationSystem : JobComponentSystem
     {
         List<NativeHashMap<char, Entity>> forDispose;
@@ -33,8 +33,8 @@ namespace E7.ECS.SpriteFont
         protected override JobHandle OnUpdate(JobHandle inputDeps)
         {
             var ecb = ecbs.CreateCommandBuffer();
-            Entities.WithAll<FontAsset>().ForEach(
-                    (Entity e, in SpriteFontAssetHolder holder, in DynamicBuffer<CharacterPrefabBuffer> buffer) =>
+            Entities.WithAll<FontAssetEntity>().ForEach(
+                    (Entity e, in FontAssetHolder holder, in DynamicBuffer<GlyphPrefabBuffer> buffer) =>
                     {
                         var nativeHashMap = new NativeHashMap<char, Entity>(buffer.Length, Allocator.Persistent);
                         var nativeHashMapWithScale =
@@ -49,7 +49,7 @@ namespace E7.ECS.SpriteFont
                         }
 
                         EntityManager.AddSharedComponentData(e,
-                            new CharacterPrefabLookup
+                            new GlyphPrefabLookup
                             {
                                 characterToPrefabEntity = nativeHashMap,
                                 characterToPrefabEntityWithScale = nativeHashMapWithScale
@@ -58,7 +58,7 @@ namespace E7.ECS.SpriteFont
                 .WithStoreEntityQueryInField(ref noLookupFontAssetQuery)
                 .WithStructuralChanges()
                 .Run();
-            ecb.RemoveComponent<CharacterPrefabBuffer>(noLookupFontAssetQuery);
+            ecb.RemoveComponent<GlyphPrefabBuffer>(noLookupFontAssetQuery);
             return default;
         }
     }
