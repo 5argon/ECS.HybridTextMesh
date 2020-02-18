@@ -12,7 +12,7 @@ namespace E7.ECS.HybridTextMesh
     /// After this is done once, it is all up to transform system every frame.
     /// </summary>
     [UpdateInGroup(typeof(HybridTextMeshToTransformGroup))]
-    internal class GlyphLayoutSystem : JobComponentSystem
+    internal class GlyphLayoutSystem : SystemBase
     {
         EntityQuery notLayoutYetQuery;
         BeginInitializationEntityCommandBufferSystem ecbs;
@@ -25,7 +25,7 @@ namespace E7.ECS.HybridTextMesh
             ecbs = World.GetOrCreateSystem<BeginInitializationEntityCommandBufferSystem>();
         }
 
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        protected override void OnUpdate()
         {
             var ecb = ecbs.CreateCommandBuffer();
             var TranslationCdfe = GetComponentDataFromEntity<Translation>(isReadOnly: false);
@@ -33,7 +33,7 @@ namespace E7.ECS.HybridTextMesh
             var MetricsCdfe = GetComponentDataFromEntity<GlyphMetrics>(isReadOnly: true);
             var SpecialCharacterCdfe = GetComponentDataFromEntity<SpecialCharacter>(isReadOnly: true);
 
-            var jh = Entities
+            Dependency = Entities
                 .WithReadOnly(MetricsCdfe)
                 .WithReadOnly(SpecialCharacterCdfe)
                 .WithNativeDisableParallelForRestriction(TranslationCdfe)
@@ -46,10 +46,10 @@ namespace E7.ECS.HybridTextMesh
                     Layout(e, tt, ttf, leg, TranslationCdfe, MetricsCdfe, SpecialCharacterCdfe);
                 })
                 .WithStoreEntityQueryInField(ref notLayoutYetQuery)
-                .Schedule(inputDeps);
+                .ScheduleParallel(Dependency);
             ecb.AddComponent<LayoutCompleted>(notLayoutYetQuery);
 
-            var jh2 = Entities
+            Dependency = Entities
                 .WithReadOnly(MetricsCdfe)
                 .WithReadOnly(SpecialCharacterCdfe)
                 .WithNativeDisableParallelForRestriction(TranslationCdfe)
@@ -63,11 +63,7 @@ namespace E7.ECS.HybridTextMesh
                     Layout(e, tt, ttf, leg, TranslationCdfe, MetricsCdfe, SpecialCharacterCdfe);
                 })
                 .WithStoreEntityQueryInField(ref layoutAgainQuery)
-                .Schedule(jh);
-
-            //Also create a job that redo on layout updates.
-
-            return JobHandle.CombineDependencies(jh, jh2);
+                .ScheduleParallel(Dependency);
         }
 
         static void Layout(
@@ -132,11 +128,11 @@ namespace E7.ECS.HybridTextMesh
                     translation.Value = new float3(
                         xNow,
                         yNow - glyphMetrics.texturePaddings.z, 0);
-                    
+
                     float allAdvance = glyphAdvance + tt.tracking;
                     allAdvance = tt.monospace ? math.max(tt.monospaceWidth, allAdvance) : allAdvance;
                     afterGlyphAdvance = allAdvance - glyphAdvance;
-                    
+
                     xNow += glyphMetrics.texturePaddings.w + allAdvance;
                     cumulativeX += allAdvance;
                     TranslationCdfe[c] = translation;

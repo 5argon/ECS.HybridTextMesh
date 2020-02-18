@@ -35,7 +35,7 @@ namespace E7.ECS.HybridTextMesh
         /// <summary>
         /// Doesn't work yet.
         /// </summary>
-        [SerializeField] internal bool singleMeshMode;
+        [SerializeField] internal MeshMode meshMode;
 #pragma warning restore 0649
     }
 }

@@ -14,7 +14,7 @@ namespace E7.ECS.HybridTextMesh
     /// </summary>
     [UpdateInGroup(typeof(HybridTextMeshSimulationGroup))]
     [UpdateAfter(typeof(EnsureFontAssetEntitySystem))]
-    internal class GlyphSpawningSystem : JobComponentSystem
+    internal class GlyphSpawningSystem : SystemBase
     {
         BeginInitializationEntityCommandBufferSystem ecbs;
         EntityQuery fontAssetQuery;
@@ -46,16 +46,14 @@ namespace E7.ECS.HybridTextMesh
             structureTypeInfo = TypeManager.GetFastEqualityTypeInfo(TypeManager.GetTypeInfo<TextStructure>());
         }
 
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        protected override void OnUpdate()
         {
             if (initialGenerationQuery.CalculateChunkCount() > 0 || changedRegenerationQuery.CalculateChunkCount() > 0)
             {
-                inputDeps.Complete();
-
                 var ecb = ecbs.CreateCommandBuffer();
 
                 Entities
-                    .WithName("Initial mesh generation")
+                    .WithName("InitialMeshGeneration")
                     .WithNone<GlyphSpawned>().ForEach(
                         (Entity e, in TextContent t, in TextStructure ts, in FontAssetHolder holder,
                             in DynamicBuffer<GlyphEntityGroup> leg) =>
@@ -78,7 +76,7 @@ namespace E7.ECS.HybridTextMesh
                 // Do the same but on every changes to text content, regardless of spawned status.
                 // If fail, remove spawned tag so it retry like the first time.
                 Entities
-                    .WithName("Changed text regeneration")
+                    .WithName("ChangedTextRegeneration")
                     .WithAll<GlyphSpawned>()
                     .WithChangeFilter<TextContent, TextStructure>()
                     .ForEach(
@@ -127,8 +125,6 @@ namespace E7.ECS.HybridTextMesh
                     .WithStoreEntityQueryInField(ref changedRegenerationQuery)
                     .WithoutBurst().Run();
             }
-
-            return default;
         }
 
         static bool GenerateMeshes(EntityManager em,

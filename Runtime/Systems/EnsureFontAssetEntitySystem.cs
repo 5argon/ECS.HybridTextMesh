@@ -15,7 +15,7 @@ namespace E7.ECS.HybridTextMesh
     /// Has 1 frame delay.
     /// </summary>
     [UpdateInGroup(typeof(HybridTextMeshSimulationGroup))]
-    internal class EnsureFontAssetEntitySystem : JobComponentSystem
+    internal class EnsureFontAssetEntitySystem : SystemBase
     {
         EntityQuery fontAssetQuery;
         EntityQuery potentiallyNewSpriteFontAssetQuery;
@@ -43,7 +43,7 @@ namespace E7.ECS.HybridTextMesh
             RequireForUpdate(potentiallyNewSpriteFontAssetQuery);
         }
 
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        protected override void OnUpdate()
         {
             var ecb = ecbs.CreateCommandBuffer();
             var worked = new NativeList<int>(4, Allocator.Temp);
@@ -85,7 +85,6 @@ namespace E7.ECS.HybridTextMesh
                 .WithoutBurst().Run();
             ecb.AddComponent<FontAssetEntityExistForThisText>(potentiallyNewSpriteFontAssetQuery);
             worked.Dispose();
-            return default;
         }
 
         void RegisterCharacter(HtmFontAsset sfa,

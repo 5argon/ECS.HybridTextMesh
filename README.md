@@ -15,7 +15,7 @@ Currently generation source are 2 `Sprite` both in multi mode : rects and bounds
 
 Name each rect as a single character and it will be interpreted by the converter as a UV area for that character inside your string. Drag all sprite rects into rect and bounds field on the asset. Before generation, assign `baseSize` in the font's metrics. Then right click the Inspector of the asset to use preprocess context menu.
 
-- The "rect" `Sprite` is used for generating mesh, which the height is fixed at `baseSize` and width following the shape of rects in the sprite. To enable single mesh mode, all "rect" must be of the same size. (Therefore thin glyphs will need empty space around it.) If you satisfy this condition after generation a check mark will appear on "Single Mesh Support".
+- The "rect" `Sprite` is used for generating mesh, which the height is fixed at `baseSize` and width following the shape of rects in the sprite. To enable universal mesh mode, all "rect" must be of the same size. (Therefore thin glyphs will need empty space around it.) If you satisfy this condition after generation a check mark will appear on "Universal Mesh Support".
 - The "bounds" `Sprite` is expected to contain a tightly fitted rect to the glyph's graphic. They are all expected to be surrounded by their "rect" counterpart. The bounds will be translated into positioning offset that it looked like the mesh has no surrounding space around them. (Exchanged with overdraw because the glyph's meshes are now overlapping.)
 
 Metrics other than base size are as if the base size is 1. If you change the base size later there is no need to update ascender, descender, and leading.
@@ -27,6 +27,18 @@ Meshes are generated with size according to base size and baked into the font as
 Programmatically please see the authoring component and mimic what it is doing. Pay attention to how it migrate stuff from `RectTransform` as `Rect` to use together with `Translation`.
 
 After setting up a single "glyph parent entity" correctly, systems will activate and create 1 `Entity` per glyph as a child of that (transform-wise with `Parent`, and package specific dynamic buffer `GlyphEntityGroup`) and set them up so Hybrid Renderer works.
+
+The first time system encounter a unique `HtmFontAsset`, it will generate a `Prefab` of all available characters in that font immediately. This make it fast to edit and regenerate the glyphs. These `Prefab` entities are never destroyed.
+
+## Meshes and drawing
+
+The approach how it use meshes is different from Text Mesh Pro. In TMP it seems to has a single `MeshFilter` and `MeshRenderer`, and the API generate and combine to make a single mesh of all glyphs currently present in the sentence. It cost some CPU load but allows more dynamic batching with other sentence's combined meshes of the same material.
+
+With Hybrid Text Mesh, meshes are not combined and we leave it to hopefully faster ECS iteration to draw them separately. This make draw order goes in order of character and may produce undesirable result when multiple text of the same material stacked on each other. (e.g. Digit 9 always on top no matter where they are in the string.) Each mesh is of course become `RenderMesh`, so space implication is that it cost 16kB per each different character! (~60 characters cost 1 MB of memory on entity prefabs, plus x2 for your own glyphs that would be in different chunks.) Therefore this is probably more suited for limited character set and not for something like Japanese language with 2000+ characters.
+
+On the plus side geometry instancing should work for each character (and for all characters on universal mesh mode).
+
+A new combined mesh mode may be developed in the future which it should use the new mesh API added in 2019.3 and 2020.1. Hybrid Renderer then receive a single combined mesh and draw them in a more proper order.
 
 ## Layout
 
@@ -66,11 +78,14 @@ Normally it will not add `NonUniformScale` on any of your glyph, and if you need
 
 With this mode all generated glyph entities will individually have `NonUniformScale`, which this package will not use. It adds more potential from your own code such as pulsing per-character animation.
 
-### Single mesh mode
+### Universal mesh mode
 
-This is a WIP mode not usable currently but there are stubs left all over the place. Normally (both this package and Text Mesh Pro) each character has different mesh. Only the same character of the same font are in the same batch in `BatchRendererGroup` that Hybrid Renderer uses.
+This is a WIP radical mode not usable currently but there are stubs left all over the place. Normally (both this package and Text Mesh Pro) each character has different mesh. In TMP meshes are combined. Here only the same character of the same font are in the same batch in `BatchRendererGroup` that Hybrid Renderer uses.
 
 The plan to push performance further is to try using only 1 mesh to render all glyphs which it allows geometry instancing. Because each mesh must also have the same UV, instead I would like to try using material property block to vary offset of texture instead to slide the texture into the fixed "UV window". This tactics only work if the character textures were prepared in equal size.
 
 That maybe done once URP support for `[MaterialPropertyBlock]` lands as an optimization for specialized use case. (e.g. A lot of animated damage numbers or running scores, which consisting of only digits and rather need performance more than flexibility/ease of preparation.)
 
+### Combined mesh mode
+
+A WIP mode that combine all glyph's mesh like Text Mesh Pro for more traditional rendering. Each sentence will produce a unique mesh.

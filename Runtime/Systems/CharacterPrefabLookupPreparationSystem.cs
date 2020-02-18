@@ -6,7 +6,7 @@ using Unity.Jobs;
 namespace E7.ECS.HybridTextMesh
 {
     [UpdateInGroup(typeof(HybridTextMeshSimulationGroup))]
-    internal class CharacterPrefabLookupPreparationSystem : JobComponentSystem
+    internal class CharacterPrefabLookupPreparationSystem : SystemBase
     {
         List<NativeHashMap<char, Entity>> forDispose;
         BeginInitializationEntityCommandBufferSystem ecbs;
@@ -30,7 +30,7 @@ namespace E7.ECS.HybridTextMesh
             }
         }
 
-        protected override JobHandle OnUpdate(JobHandle inputDeps)
+        protected override void OnUpdate()
         {
             var ecb = ecbs.CreateCommandBuffer();
             Entities.WithAll<FontAssetEntity>().ForEach(
@@ -59,7 +59,6 @@ namespace E7.ECS.HybridTextMesh
                 .WithStructuralChanges()
                 .Run();
             ecb.RemoveComponent<GlyphPrefabBuffer>(noLookupFontAssetQuery);
-            return default;
         }
     }
 }

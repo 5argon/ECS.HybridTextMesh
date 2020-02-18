@@ -26,10 +26,10 @@ namespace E7.ECS.HybridTextMesh
         [Space] [SerializeField] internal TMP_FontAsset tmpFontAsset;
 
         [Header("Preprocessed")] [SerializeField]
-        bool singleMeshSupport;
+        bool universalMeshSupport;
 
         [SerializeField] internal CharacterInfo[] characterInfos;
-        [SerializeField] internal Mesh singleMesh;
+        [SerializeField] internal Mesh universalMesh;
 #pragma warning restore 0649,0414
 
 #if UNITY_EDITOR
@@ -114,11 +114,11 @@ namespace E7.ECS.HybridTextMesh
 
             if (sizes.Count > 1)
             {
-                singleMeshSupport = false;
+                universalMeshSupport = false;
             }
             else
             {
-                singleMeshSupport = true;
+                universalMeshSupport = true;
             }
 
             characterInfos = pairs.ToArray();
@@ -153,7 +153,7 @@ namespace E7.ECS.HybridTextMesh
             }
 
             AssetDatabase.AddObjectToAsset(mesh, this);
-            singleMesh = mesh;
+            universalMesh = mesh;
             foreach (var a in pairs)
             {
                 AssetDatabase.AddObjectToAsset(a.meshForCharacter, this);

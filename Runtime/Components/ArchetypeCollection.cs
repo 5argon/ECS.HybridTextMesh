@@ -22,6 +22,7 @@ namespace E7.ECS.HybridTextMesh
         {
             ComponentType.ReadOnly<Translation>(),
             ComponentType.ReadOnly<RenderMesh>(),
+            ComponentType.ReadOnly<RenderBounds>(), //New hybrid renderer no longer add this.
             ComponentType.ReadOnly<LocalToWorld>(),
             ComponentType.ReadOnly<LocalToParent>(),
             ComponentType.ReadOnly<GlyphUv>(),
